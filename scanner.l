@@ -1,4 +1,10 @@
+/**
+ * Introduction to Compiler Design by Prof. Yi Ping You
+ * Project 2 Lex Sample
+ */
+
 %{
+#include <stdio.h>
 #include <string.h>
 #include "y.tab.h"
 
@@ -10,7 +16,6 @@
 #define tokenFloat(t, i) { LIST; if (Opt_T) printf("<%s: %s>\n", t, i ); }
 #define tokenScientific(t, s) { LIST; if ( Opt_T ) printf("<%s: %s>\n", t, s); }
 #define tokenString(t, s) { LIST; if (Opt_T) printf("<%s: %s>\n", t, s); }
-
 
 #define  MAX_LINE_LENG  256
 
@@ -35,106 +40,91 @@ scientific ({integer}|{float}|{octal})[Ee][+-]?({integer}|{octal})
 identifier ({letter})({letter}|{digit})*
 
  /* exclusive start conditions */
-%x STR
 %x COMMENT
 %x COMMENT_CPP
 
 %%
 
-","				{ tokenChar(',');	return Comma; }
-";"				{ tokenChar(';');	return Semicolon; }
-":"				{ tokenChar(':');	return Colon; }
-")"				{ tokenChar(')');	return RightParenthese; }
-"("				{ tokenChar('(');	return LeftParenthese; }
-"["				{ tokenChar('[');	return LeftBracket; }
-"]"				{ tokenChar(']');	return RightBracket; }
+","				{ tokenChar(','); return MK_COMMA; }
+";"				{ tokenChar(';'); return MK_SEMICOLON; }
+":"				{ tokenChar(':'); return MK_COLON; }
+")"				{ tokenChar(')'); return MK_RPAREN; }
+"("				{ tokenChar('('); return MK_LPAREN; }
+"["				{ tokenChar('['); return MK_LB;}
+"]"				{ tokenChar(']'); return MK_RB; }
 
-"+"				{ tokenChar('+');	return Plus; }
-"-"				{ tokenChar('-');	return Minus; }
-"*"				{ tokenChar('*');	return Star; }
-"/"				{ tokenChar('/');	return Slash; }
-"mod"			{ token(mod);		return Mod; }
-":="			{ token(:=);		return Assign; }
-"<"				{ tokenChar('<');	return LessThan; }
-"<="			{ token(<=);		return LessThanEqual; }
-"<>"			{ token(<>);		return NotEqual; }
-">="			{ token(>=);		return GreaterThanEqual; }
-">"				{ tokenChar('>');	return GreaterThan; }
-"="				{ tokenChar('=');	return Equal; }
-"and"			{ token(and);		return And; }
-"or"			{ token(or);		return Or; }
-"not"			{ token(not);		return Not; }
+"+"				{ tokenChar('+'); return OP_ADD; }
+"-"				{ tokenChar('-'); return OP_SUB; }
+"*"				{ tokenChar('*'); return OP_MUL; }
+"/"				{ tokenChar('/'); return OP_DIV; }
+"mod"				{ token(mod); return OP_MOD; }
+":="				{ token(:=); return OP_ASSIGN; }
+"<"				{ token(<); return OP_LT; }
+"<="				{ token(<=); return OP_LE; }
+"<>"				{ token(<>); return OP_NE; }
+">="				{ token(>=); return OP_GE; }
+">"				{ token(>); return OP_GT; }
+"="				{ token(=); return OP_EQ; }
+"and"				{ token(and); return OP_AND; }
+"or"				{ token(or); return OP_OR; }
+"not"				{ token(not); return OP_NOT; }
 
-"array"			{ token(KWarray);	return Array; }
-"begin"			{ token(KWbegin);	return Begin; }
-"boolean"		{ token(KWboolean);	return Boolean; }
-"def"			{ token(KWdef);		return Def; }
-"do"			{ token(KWdo);		return Do; }
-"else"			{ token(KWelse);	return Else; }
-"end"			{ token(KWend);		return End; }
-"false"			{ token(KWfalse);	return False; }
-"for"			{ token(KWfor);		return For; }
-"integer"		{ token(KWinteger);	return Integer; }
-"if"			{ token(KWif);		return If; }
-"of"			{ token(KWof);		return Of; }
-"print"			{ token(KWprint);	return Print; }
-"read"			{ token(KWread);	return Read; }
-"real"			{ token(KWreal);	return Real; }
-"string"		{ token(KWstring);	return String; }
-"then"			{ token(KWthen);	return Then; }
-"to"			{ token(KWto);		return To; }
-"true"			{ token(KWtrue);	return True; }
-"return"		{ token(KWreturn);	return Return; }
-"var"			{ token(KWvar);		return Var; }
-"while"			{ token(KWwhile);	return While; }
+"array"				{ token(KWarray); return ARRAY; }
+"begin"				{ token(KWbegin); return BEG; }
+"boolean"			{ token(KWboolean); return BOOLEAN; }
+"def"				{ token(KWdef); return DEF; }
+"do"				{ token(KWdo); return DO; }
+"else"				{ token(KWelse); return ELSE; }
+"end"				{ token(KWend); return END; }
+"false"				{ token(KWfalse); return FALSE; }
+"for"				{ token(KWfor); return FOR; }
+"integer"			{ token(KWinteger); return INTEGER; }
+"if"				{ token(KWif); return IF; }
+"of"				{ token(KWof); return OF; }
+"print"				{ token(KWprint); return PRINT; }
+"read"				{ token(KWread); return READ; }
+"real"				{ token(KWreal); return REAL; }
+"return"			{ token(KWreturn); return RETURN; }
+"string"			{ token(KWstring); return STRING; }
+"then"				{ token(KWthen); return THEN; }
+"to"				{ token(KWto); return TO; }
+"true"				{ token(KWtrue); return TRUE; }
+"var"				{ token(KWvar); return VAR; }
+"while"				{ token(KWwhile); return WHILE; }
 
-{octal} 		{ tokenOctInteger("oct_integer",yytext);	return OctalValue; }
-{identifier}	{ tokenString("id",yytext);					return Identifier; }
-{integer}		{ tokenInteger("integer",atoi(yytext));		return IntegerValue; }
-{float}			{ tokenFloat("float",yytext);				return FloatValue; }
-{scientific}	{ tokenScientific("scientific", yytext);	return ScientificValue; }
+{octal}				{ yylval.value = strtol(yytext,NULL,8); tokenOctInteger("oct_integer",yytext);return OCTAL_CONST;}
+{identifier}		{ yylval.text = yytext; tokenString("id",yytext); return ID; }
+{integer}			{ yylval.value = atoi(yytext); tokenInteger("integer",atoi(yytext)); return INT_CONST; }
+{float}				{ yylval.dval = atof(yytext); tokenFloat("float",yytext); return FLOAT_CONST; }
+{scientific}		{ yylval.text = yytext; tokenScientific("scientific", yytext); return SCIENTIFIC; }
 
-"\""			{ /* begin string  */
-				  LIST;
-				  BEGIN STR; 
+\"((\"\")|[^\"\n])*\"	{
+				LIST;
+				if (Opt_T){
+					size_t wrt_idx = 0;
+					size_t rd_idx = 1;
+					int quote = 0;
+					while( yytext[rd_idx] ){
+						if( yytext[rd_idx] == '\"' ){
+							if( quote )
+								strContent[wrt_idx++] = '\"';
+							quote = 1 - quote;
+						}
+						else
+							strContent[wrt_idx++] = yytext[rd_idx];
+						rd_idx++;
+					}
+					strContent[wrt_idx] = '\0';
+					printf("<%s: %s>\n", "string", strContent);
 				}
-
-<STR>([^"\n])*	{
-				  LIST;
-				  strcat( strContent, yytext );
-				}
-
-<STR>"\""		{ /* end of string or "" */
-				  char c;
-				  c = input();
-				  if( c == '\"' )	/* "" */
-				  {
-					LIST;
-					strcat( buf, "\"" );
-					strcat( strContent, "\"" );
-				  }
-				  else			/* end of string */
-				  {
-					unput(c);
-					strcat(buf,"\"");
-					if (Opt_T)
-						printf("<%s: %s>\n", "string", strContent );
-					strContent[0] = '\0';
-				  	BEGIN INITIAL;
-					return StringValue;
-				  }
-				}
-<STR>"\n"		{
-				  /* error, cancel execution immediately!  */
-				  fprintf( stdout, "error at line %d: string `%s` missing terminating \" character\n", linenum, strContent );
-				  exit(-1);
-				}
+				return STR_CONST;
+			}
 
 "//&"[A-Z][+-][^\n]*		{ /* pseudo comment */
 				  LIST;
 				  setPseudoComment( yytext );
 				}
-"//"			{ /* C++ stype comment */
+"//"				{ /* C++ stype comment */
 				  LIST;
 				  BEGIN COMMENT_CPP;
 				}
@@ -152,26 +142,26 @@ identifier ({letter})({letter}|{digit})*
 				  BEGIN INITIAL;
 				}
 
-"/*"			{ /* C-style comment */
+"/*"				{ /* C-style comment */
 				  LIST;
 				  BEGIN COMMENT;
 				}
-<COMMENT>"*/"	{
+<COMMENT>"*/"			{
 				  LIST;
 				  BEGIN INITIAL;
 				}
-<COMMENT>"\n"	{
+<COMMENT>"\n"			{
 				  LIST;
 				  if  (Opt_S)
 				  	printf("%d: %s",  linenum,  buf);
 				  linenum++;
 				  buf[0] = '\0';
 				}
-<COMMENT>.		{
+<COMMENT>.			{
 				  LIST;
 				}
 
-{whitespace}	{ 
+{whitespace}			{ 
 				  LIST; 
 				}
 
@@ -190,48 +180,32 @@ identifier ({letter})({letter}|{digit})*
 				}
 
 %%
-/*int  main( int argc, char **argv )
-{
-	if( argc != 2 ) {
-		fprintf(  stdout,  "Usage:  ./scanner  [filename]\n"  );
-		exit(0);
-	}
-
-	FILE *fp = fopen( argv[1], "r" );
-	
-	if( fp == NULL )  {
-		fprintf( stdout, "Open  file  error\n" );
-		exit(-1);
-	}
-	
-	yyin = fp;
-	yylex();
-	exit(0);
-}*/
 
 void setPseudoComment( const char *text )
 {
 	/* format : //&[A-Z][+-] */
 	switch( text[3] ) {
-	 case 'S':
+	 case 'S':			/* Source code */
 		if( text[4] == '+' )
 			Opt_S = 1;
 		else if( text[4] == '-' )
 			Opt_S = 0;
 		break;
-	 case 'T':
+	 case 'T':			/* Tokens */
 		if( text[4] == '+' )
 			Opt_T = 1;
 		else if( text[4] == '-' )
 			Opt_T = 0;
 	 	break;
-	 case 'D':
+	case 'D':
 		if( text[4] == '+' )
 			Opt_D = 1;
 		else if( text[4] == '-' )
 			Opt_D = 0;
+		break;
 	 default:
 	 	break;
 	}
 
 }
+

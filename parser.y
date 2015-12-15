@@ -1,191 +1,325 @@
 %{
+/**
+ * Introduction to Compiler Design by Prof. Yi Ping You
+ * Project 2 YACC sample
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include "Symbol.h"
 #include "SymbolTable.h"
 #include "CSymbolTableStack.h"
 
-extern int linenum;             /* declared in lex.l */
-extern FILE *yyin;              /* declared by lex */
-extern char *yytext;            /* declared by lex */
-extern char buf[256];           /* declared in lex.l */
+extern int linenum;		/* declared in lex.l */
+extern FILE *yyin;		/* declared by lex */
+extern char *yytext;		/* declared by lex */
+extern char buf[256];		/* declared in lex.l */
+extern int yylex(void);
+int yyerror(char* );
 extern int Opt_D;
 struct CSymbolTableStack stack;
 struct SymbolTable* symbolTable;
-
-int yylex();
 %}
+%union {
+int value;
+double dval;
+char* text;
+}
+/* tokens */
+%token ARRAY
+%token BEG
+%token BOOLEAN
+%token DEF
+%token DO
+%token ELSE
+%token END
+%token FALSE
+%token FOR
+%token INTEGER
+%token IF
+%token OF
+%token PRINT
+%token READ
+%token REAL
+%token RETURN
+%token STRING
+%token THEN
+%token TO
+%token TRUE
+%token VAR
+%token WHILE
 
-%token Comma Semicolon Colon
-%token LeftParenthese RightParenthese
-%token LeftBracket RightBracket
-%token Plus Minus Star Slash Mod Assign
-%token LessThan LessThanEqual NotEqual GreaterThanEqual GreaterThan Equal And Or Not
-%token Array Boolean Integer Real String
-%token True False
-%token Begin End Def Do While If Else For Of  Then To Return Var 
-%token Print Read
-%token Identifier ScientificValue FloatValue OctalValue IntegerValue StringValue
+%token ID
+%token OCTAL_CONST
+%token INT_CONST
+%token FLOAT_CONST
+%token SCIENTIFIC
+%token STR_CONST
 
-%left Semicolon
-%left Or
-%left And
-%right Not
-%left LessThan LessThanEqual Equal GreaterThanEqual GreaterThan NotEqual
-%left Plus Minus    
-%left Star Slash Mod 
+%token OP_ADD
+%token OP_SUB
+%token OP_MUL
+%token OP_DIV
+%token OP_MOD
+%token OP_ASSIGN
+%token OP_EQ
+%token OP_NE
+%token OP_GT
+%token OP_LT
+%token OP_GE
+%token OP_LE
+%token OP_AND
+%token OP_OR
+%token OP_NOT
 
+%token MK_COMMA
+%token MK_COLON
+%token MK_SEMICOLON
+%token MK_LPAREN
+%token MK_RPAREN
+%token MK_LB
+%token MK_RB
+
+/* start symbol */
+%start program
 %%
 
-program: Identifier 
-		{
-			symbolTable = NewSymbolTable();
-			Push(&stack, symbolTable);
-		}
-		Semicolon programbody 
-		{
-			if(Opt_D)
-				DumpSymbolTable(Peek(&stack));
-			Pop(&stack);
-		}
-		End Identifier;
+program			: ID
+			{
+				symbolTable = NewSymbolTable();
+				Push(&stack, symbolTable);
+			}
+			MK_SEMICOLON 
+			program_body
+			{
+				if(Opt_D)
+					DumpSymbolTable(Peek(&stack));
+				Pop(&stack);
+			}
+			END ID
+			;
 
-programbody: declarations;
+program_body		: opt_decl_list opt_func_decl_list compound_stmt
+			;
 
-declarations: variable_constant_declarations  function_declarations compound_statement
-            | function_declarations compound_statement
-			| variable_constant_declarations compound_statement
-			| compound_statement;
+opt_decl_list		: decl_list
+			| /* epsilon */
+			;
 
-variable_constant_declarations: variable_constant_declaration variable_constant_declarations
-                              | variable_constant_declaration;
-			
-variable_constant_declaration: variable_declaration
-                             | constant_variable_declaration;
-			
-variable_declaration: Var identifier_list Colon scalar_type Semicolon
-                    | Var identifier_list Colon array Semicolon;
-					
-constant_variable_declaration: Var identifier_list Colon literal_constant Semicolon;
-		
-identifier_list: Identifier Comma identifier_list
-			   | Identifier;
-		
-scalar_type: Integer
-           | Real
-           | String
-           | Boolean;
+decl_list		: decl_list decl
+			| decl
+			;
 
-integer_constant: IntegerValue
-                | OctalValue;
+decl			: VAR id_list MK_COLON scalar_type MK_SEMICOLON       /* scalar type declaration */
+			| VAR id_list MK_COLON array_type MK_SEMICOLON        /* array type declaration */
+			| VAR id_list MK_COLON literal_const MK_SEMICOLON     /* const declaration */
+			;
+int_const	:	INT_CONST
+			|	OCTAL_CONST
+			;
 
-array: Array integer_constant To integer_constant Of type;
+literal_const		: int_const
+			| OP_SUB int_const
+			| FLOAT_CONST
+			| OP_SUB FLOAT_CONST
+			| SCIENTIFIC
+			| OP_SUB SCIENTIFIC
+			| STR_CONST
+			| TRUE
+			| FALSE
+			;
 
-type: scalar_type
-    | array;
+opt_func_decl_list	: func_decl_list
+			| /* epsilon */
+			;
 
-literal_constant: True
-                | False
-                | IntegerValue
-                | OctalValue
-                | FloatValue
-                | ScientificValue
-                | StringValue;
-				
-function_declarations: function_declaration function_declarations
-                     | function_declaration;
+func_decl_list		: func_decl_list func_decl
+			| func_decl
+			;
 
-function_declaration: function_header compound_statement End Identifier;
+func_decl		: ID
+			{
+				symbolTable = NewSymbolTable();
+				Push(&stack, symbolTable);
+			}
+			MK_LPAREN opt_param_list MK_RPAREN opt_type MK_SEMICOLON
+			compound_stmt
+			{
+				if(Opt_D)
+					DumpSymbolTable(Peek(&stack));
+				Pop(&stack);
+			}
+			END ID
+			;
 
-function_header: Identifier LeftParenthese formal_arguments RightParenthese Colon type Semicolon
-               | Identifier LeftParenthese formal_arguments RightParenthese Semicolon;
-			   | Identifier LeftParenthese RightParenthese Colon type Semicolon
-               | Identifier LeftParenthese RightParenthese Semicolon;			   
+opt_param_list		: param_list
+			| /* epsilon */
+			;
 
-formal_arguments: formal_argument Semicolon formal_arguments
-                | formal_argument;
-					
-formal_argument: identifier_list Colon type;
+param_list		: param_list MK_SEMICOLON param
+			| param
+			;
 
-statements: statement statements
-          | statement;
+param			: id_list MK_COLON type
+			;
 
-statement: compound_statement
-         | simple_statement		
-         | conditional_statement		
-		 | while_statement	
-		 | for_statement	
-		 | return_statement	
-		 | procedure_call_statement;	 
+id_list			: id_list MK_COMMA ID
+			| ID
+			;
 
-compound_statement: Begin variable_constant_declarations statements End
-                  | Begin variable_constant_declarations End
-				  | Begin statements End
-				  | Begin End;
+opt_type		: MK_COLON type
+			| /* epsilon */
+			;
 
-simple_statement: variable_reference Assign expression Semicolon
-				| Print expression Semicolon
-				| Read variable_reference Semicolon;
+type			: scalar_type
+			| array_type
+			;
 
-conditional_statement: If expression Then statements Else statements End If
-                     | If expression Then Else statements End If
-					 | If expression Then statements Else End If
-					 | If expression Then Else End If
-					 | If expression Then statements End If
-					 | If expression Then End If;
-					 
-while_statement: While expression Do statements End Do
-               | While expression Do End Do;
-			   
-for_statement: For Identifier Assign integer_constant To integer_constant Do statements End Do;
-             | For Identifier Assign integer_constant To integer_constant Do End Do;
-			 
-return_statement: Return expression Semicolon;
+scalar_type		: INTEGER
+			| REAL
+			| BOOLEAN
+			| STRING
+			;
 
-function_invocation: Identifier LeftParenthese expression_parameters RightParenthese
-                   | Identifier LeftParenthese RightParenthese;
+array_type		: ARRAY int_const TO int_const OF type
+			;
 
-procedure_call_statement: function_invocation Semicolon;
+stmt			: compound_stmt
+			| simple_stmt
+			| cond_stmt
+			| while_stmt
+			| for_stmt
+			| return_stmt
+			| proc_call_stmt
+			;
 
-variable_reference: Identifier array_reference
-                  | Identifier;
-				  
-array_reference: LeftBracket expression RightBracket array_reference
-			   | LeftBracket expression RightBracket;
+compound_stmt		: BEG
+			{
+				symbolTable = NewSymbolTable();
+				Push(&stack, symbolTable);
+			}
+			opt_decl_list
+			opt_stmt_list
+			{
+				if(Opt_D)
+					DumpSymbolTable(Peek(&stack));
+				Pop(&stack);
+			} 
+			 END
+			;
 
-expression: LeftParenthese expression RightParenthese
-          | Minus expression
-		  | expression Star expression
-		  | expression Slash expression
-		  | expression Mod expression
-		  | expression Plus expression
-		  | expression Minus expression
-		  | expression LessThan expression
-		  | expression LessThanEqual expression
-          | expression Equal expression
-          | expression GreaterThanEqual expression
-          | expression GreaterThan expression
-          | expression NotEqual expression
-          | Not expression
-          | expression And expression
-          | expression Or expression
-		  | function_invocation
-		  | variable_reference
-          | literal_constant;
+opt_stmt_list		: stmt_list
+			| /* epsilon */
+			;
 
-expression_parameters: expression Comma expression_parameters
-                     | expression;
+stmt_list		: stmt_list stmt
+			| stmt
+			;
+
+simple_stmt		: var_ref OP_ASSIGN boolean_expr MK_SEMICOLON
+			| PRINT boolean_expr MK_SEMICOLON
+			| READ boolean_expr MK_SEMICOLON
+			;
+
+proc_call_stmt		: ID MK_LPAREN opt_boolean_expr_list MK_RPAREN MK_SEMICOLON
+			;
+
+cond_stmt		: IF boolean_expr THEN
+			  opt_stmt_list
+			  ELSE
+			  opt_stmt_list
+			  END IF
+			| IF boolean_expr THEN opt_stmt_list END IF
+			;
+
+while_stmt		: WHILE boolean_expr DO
+			  opt_stmt_list
+			  END DO
+			;
+
+for_stmt		: FOR ID OP_ASSIGN int_const TO int_const DO
+			  opt_stmt_list
+			  END DO
+			;
+
+return_stmt		: RETURN boolean_expr MK_SEMICOLON
+			;
+
+opt_boolean_expr_list	: boolean_expr_list
+			| /* epsilon */
+			;
+
+boolean_expr_list	: boolean_expr_list MK_COMMA boolean_expr
+			| boolean_expr
+			;
+
+boolean_expr		: boolean_expr OP_OR boolean_term
+			| boolean_term
+			;
+
+boolean_term		: boolean_term OP_AND boolean_factor
+			| boolean_factor
+			;
+
+boolean_factor		: OP_NOT boolean_factor 
+			| relop_expr
+			;
+
+relop_expr		: expr rel_op expr
+			| expr
+			;
+
+rel_op			: OP_LT
+			| OP_LE
+			| OP_EQ
+			| OP_GE
+			| OP_GT
+			| OP_NE
+			;
+
+expr			: expr add_op term
+			| term
+			;
+
+add_op			: OP_ADD
+			| OP_SUB
+			;
+
+term			: term mul_op factor
+			| factor
+			;
+
+mul_op			: OP_MUL
+			| OP_DIV
+			| OP_MOD
+			;
+
+factor			: var_ref
+			| OP_SUB var_ref
+			| MK_LPAREN boolean_expr MK_RPAREN
+			| OP_SUB MK_LPAREN boolean_expr MK_RPAREN
+			| ID MK_LPAREN opt_boolean_expr_list MK_RPAREN
+			| OP_SUB ID MK_LPAREN opt_boolean_expr_list MK_RPAREN
+			| literal_const
+			;
+
+var_ref			: ID
+			| var_ref dim
+			;
+
+dim			: MK_LB boolean_expr MK_RB
+			;
 
 %%
 
 int yyerror( char *msg )
 {
-    fprintf( stderr, "\n|--------------------------------------------------------------------------\n" );
+	(void) msg;
+	fprintf( stderr, "\n|--------------------------------------------------------------------------\n" );
 	fprintf( stderr, "| Error found in Line #%d: %s\n", linenum, buf );
 	fprintf( stderr, "|\n" );
 	fprintf( stderr, "| Unmatched token: %s\n", yytext );
-    fprintf( stderr, "|--------------------------------------------------------------------------\n" );
-    exit(-1);
+	fprintf( stderr, "|--------------------------------------------------------------------------\n" );
+	exit(-1);
 }
 
 int  main( int argc, char **argv )
@@ -216,4 +350,3 @@ int  main( int argc, char **argv )
 	
 	exit(0);
 }
-
